@@ -1,0 +1,53 @@
+import streamlit as st
+import re
+
+# Load the CMU dictionary
+@st.cache_data
+def load_cmu_dict(path="cmudict.dict"):
+    cmu_dict = {}
+    with open(path, "r", encoding="latin-1") as file:
+        for line in file:
+            if line.startswith(";;;"):
+                continue
+            word, *phonemes = line.strip().split()
+            word = re.sub(r"\(\d+\)", "", word)
+            cmu_dict.setdefault(word.lower(), []).append(phonemes)
+    return cmu_dict
+
+# Map stressed vowels to Wells lexical sets
+vowel_to_lexset = {
+    "IY": "FLEECE", "IH": "KIT", "EH": "DRESS", "AE": "TRAP",
+    "AA": "PALM", "AH": "STRUT", "AO": "THOUGHT", "UH": "FOOT",
+    "UW": "GOOSE", "ER": "NURSE", "EY": "FACE", "AY": "PRICE",
+    "AW": "MOUTH", "OW": "GOAT", "OY": "CHOICE",
+}
+
+def get_lexical_set(phoneme_list):
+    for p in phoneme_list:
+        if p[-1] == '1':  # Primary stress
+            vowel = re.sub(r"\d", "", p)
+            return vowel_to_lexset.get(vowel, f"Unknown vowel: {vowel}")
+    return "No stressed vowel found"
+
+def lookup_word(word, cmu_dict):
+    word = word.lower()
+    if word not in cmu_dict:
+        return f"'{word}' not found in CMU dictionary."
+    results = []
+    for i, phonemes in enumerate(cmu_dict[word]):
+        lex_set = get_lexical_set(phonemes)
+        results.append(f"**Pronunciation {i+1}**: `{ ' '.join(phonemes) }` → **{lex_set}**")
+    return "\n\n".join(results)
+
+# UI
+st.title("🔤 Wells Lexical Set Lookup")
+st.markdown("Enter a word to find its stressed vowel and Wells lexical set (based on CMU dictionary).")
+
+cmu_dict = load_cmu_dict()
+
+word_input = st.text_input("Enter a word:", "")
+
+if word_input:
+    output = lookup_word(word_input, cmu_dict)
+    st.markdown("---")
+    st.markdown(output)
